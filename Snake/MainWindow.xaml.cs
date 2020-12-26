@@ -120,20 +120,21 @@ namespace Snake
                 specialModOn = true;
                 specialTimer.Start();
                 apple.remove();
-                int k = 0;
-                for (int x = 40; x < 40 * 14; x += 80)
-                {
-                    for (int y = 40; y < 40 * 14; y += 80)
-                    {
-                        Apples[k].x = x;
-                        Apples[k].y = y;
-                        k++;
-                    }
-                }
-                foreach (var a in Apples)
-                {
-                    a.moveAway();
-                }
+                //int k = 0;
+                //for (int x = 40; x < 40 * 14; x += 80)
+                //{
+                //    for (int y = 40; y < 40 * 14; y += 80)
+                //    {
+                //        Apples[k].x = x;
+                //        Apples[k].y = y;
+                //        k++;
+                //    }
+                //}
+                //foreach (var a in Apples)
+                //{
+                //    a.moveAway();
+                //}
+                n();
                 UpdateField();
             }
 
@@ -210,6 +211,45 @@ namespace Snake
             }
         }
 
+        void n()
+        {
+            Random rand = new Random();
+            int j = 0;
+            foreach (var a in Apples)
+            {
+                a.x = rand.Next(13) * 40 + 40;
+                a.y = rand.Next(13) * 40 + 40;
+                do
+                {
+                    j++;
+                    bool overlap = false;
+                    foreach (var p in snake)
+                    {
+                        if (p.x == a.x && p.y == a.y)
+                        {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                    if (!overlap)
+                        break;
+                    if (j != 0)
+                    {
+                        for (int i = 24; i > j; i--)
+                        {
+                            if (Apples[i].x == a.x && Apples[i].y == a.y)
+                            {
+                                overlap = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!overlap)
+                        break;
+                } while (true);
+            }
+        }
+
         // Обработчик нажатия кнопки "Start"
         private void button1_Click(object sender, RoutedEventArgs e)
         {
@@ -227,8 +267,8 @@ namespace Snake
             apple = new Apple(snake);
             canvas1.Children.Add(apple.image);
             // создаём яблоки для особого режима
-            Apples = new List<Apple>(64);
-            for (int i = 0; i < 64; i++)
+            Apples = new List<Apple>(25);
+            for (int i = 0; i < 25; i++)
             {
                 Apples.Add(new Apple(snake));
             }
