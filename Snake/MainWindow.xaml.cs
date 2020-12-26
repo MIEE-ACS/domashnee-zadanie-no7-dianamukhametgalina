@@ -28,16 +28,22 @@ namespace Snake
         List<PositionedEntity> snake;
         // яблоко
         Apple apple;
+        // яблоки для особого режима
+        List<Apple> Apples;
         //количество очков
         int score;
         //таймер по которому 
         DispatcherTimer moveTimer;
-        
+        //специальный таймер
+        DispatcherTimer specialTimer;
+        //флаг если активен специальный режим
+        bool specialModOn = false;
+
         //конструктор формы, выполняется при запуске программы
         public MainWindow()
         {
             InitializeComponent();
-            
+
             snake = new List<PositionedEntity>();
             //создаем поле 300х300 пикселей
             field = new Entity(600, 600, "pack://application:,,,/Resources/snake.png");
@@ -46,7 +52,11 @@ namespace Snake
             moveTimer = new DispatcherTimer();
             moveTimer.Interval = new TimeSpan(0, 0, 0, 0, 300);
             moveTimer.Tick += new EventHandler(moveTimer_Tick);
-            
+
+            //создаем таймер срабатывающий раз в 10000 мс
+            specialTimer = new DispatcherTimer();
+            specialTimer.Interval = new TimeSpan(0, 0, 0, 0, 10000);
+            specialTimer.Tick += new EventHandler(specialTimer_Tick);
         }
 
         //метод перерисовывающий экран
@@ -58,11 +68,19 @@ namespace Snake
                 Canvas.SetTop(p.image, p.y);
                 Canvas.SetLeft(p.image, p.x);
             }
-
             //обновляем положение яблока
             Canvas.SetTop(apple.image, apple.y);
             Canvas.SetLeft(apple.image, apple.x);
-            
+            if (specialModOn)
+            {
+                foreach (var a in Apples)
+                {
+                    //обновляем положение яблок
+                    Canvas.SetTop(a.image, a.y);
+                    Canvas.SetLeft(a.image, a.x);
+                }
+            }
+
             //обновляем количество очков
             lblScore.Content = String.Format("{0}000", score);
         }
@@ -97,20 +115,78 @@ namespace Snake
                 tbGameOver.Visibility = Visibility.Visible;
                 return;
             }
-
-            //проверяем, что голова змеи врезалась в яблоко
-            if (head.x == apple.x && head.y == apple.y)
+            if (score == 5 && !specialModOn) // количество яблок которое необходимо съесть чтобы активировать специальный режим
             {
-                //увеличиваем счет
-                score++;
-                //двигаем яблоко на новое место
-                apple.move();
-                // добавляем новый сегмент к змее
-                var part = new BodyPart(snake.Last());
-                canvas1.Children.Add(part.image);
-                snake.Add(part);
+                specialModOn = true;
+                specialTimer.Start();
+                apple.remove();
+                int k = 0;
+                for (int x = 40; x < 40 * 14; x += 80)
+                {
+                    for (int y = 40; y < 40 * 14; y += 80)
+                    {
+                        Apples[k].x = x;
+                        Apples[k].y = y;
+                        k++;
+                    }
+                }
+                foreach (var a in Apples)
+                {
+                    a.moveAway();
+                }
+                UpdateField();
+            }
+
+            if (!specialModOn)
+            {
+                //проверяем, что голова змеи врезалась в яблоко
+                if (head.x == apple.x && head.y == apple.y)
+                {
+                    //увеличиваем счет
+                    score++;
+                    //двигаем яблоко на новое место
+                    apple.move();
+                    // добавляем новый сегмент к змее
+                    var part = new BodyPart(snake.Last());
+                    canvas1.Children.Add(part.image);
+                    snake.Add(part);
+                }
+            }
+            else
+            {
+                foreach (var a in Apples)
+                {
+                    if (head.x == a.x && head.y == a.y)
+                    {
+                        //увеличиваем счет
+                        score++;
+                        a.remove();
+                        // добавляем новый сегмент к змее
+                        var part = new BodyPart(snake.Last());
+                        canvas1.Children.Add(part.image);
+                        snake.Add(part);
+                    }
+                }
             }
             //перерисовываем экран
+            UpdateField();
+        }
+
+        void specialTimer_Tick(object sender, EventArgs e)
+        {
+            specialModOn = false;
+            specialTimer.Stop();
+            foreach (var a in Apples)
+            {
+                a.remove();
+            }
+            apple.move();
+            foreach (var a in Apples)
+            {
+                //обновляем положение яблок
+                Canvas.SetTop(a.image, a.y);
+                Canvas.SetLeft(a.image, a.x);
+            }
             UpdateField();
         }
 
@@ -145,28 +221,42 @@ namespace Snake
             canvas1.Children.Clear();
             // скрываем надпись "Game Over"
             tbGameOver.Visibility = Visibility.Hidden;
-            
             // добавляем поле на канвас
             canvas1.Children.Add(field.image);
             // создаем новое яблоко и добавлем его
             apple = new Apple(snake);
             canvas1.Children.Add(apple.image);
+            // создаём яблоки для особого режима
+            Apples = new List<Apple>(64);
+            for (int i = 0; i < 64; i++)
+            {
+                Apples.Add(new Apple(snake));
+            }
+            foreach (var a in Apples)
+                a.remove();
+            foreach (var a in Apples)
+                canvas1.Children.Add(a.image);
+            foreach (var a in Apples)
+            {
+                //обновляем положение яблок
+                Canvas.SetTop(a.image, a.y);
+                Canvas.SetLeft(a.image, a.x);
+            }
             // создаем голову
             head = new Head();
             snake.Add(head);
             canvas1.Children.Add(head.image);
-            
             //запускаем таймер
             moveTimer.Start();
             UpdateField();
 
         }
-        
+
         public class Entity
         {
             protected int m_width;
             protected int m_height;
-            
+
             Image m_image;
             public Entity(int w, int h, string image)
             {
@@ -230,7 +320,7 @@ namespace Snake
         {
             List<PositionedEntity> m_snake;
             public Apple(List<PositionedEntity> s)
-                : base(0, 0, 40, 40, "pack://application:,,,/Resources/fruit.png")
+                : base(0, 0, 40, 40, "pack://application:,,,/Resources/apple.png")
             {
                 m_snake = s;
                 move();
@@ -257,6 +347,23 @@ namespace Snake
                 } while (true);
 
             }
+            public void moveAway()
+            {
+                foreach (var p in m_snake)
+                {
+                    if (p.x == x && p.y == y)
+                    {
+                        x = 10000;
+                        y = 10000;
+                        break;
+                    }
+                }
+            }
+            public void remove()
+            {
+                x = 10000;
+                y = 10000;
+            }
         }
 
         public class Head : PositionedEntity
@@ -268,7 +375,8 @@ namespace Snake
 
             Direction m_direction;
 
-            public Direction direction {
+            public Direction direction
+            {
                 set
                 {
                     m_direction = value;
